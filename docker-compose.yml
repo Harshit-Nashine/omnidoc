@@ -1,0 +1,168 @@
+# ================================================================
+# OmniDoc — Docker Compose: Phase 1 Database Stack
+# ================================================================
+# Starts 4 services: PostgreSQL, MongoDB, Redis, MinIO
+#
+# COMMANDS:
+#   Start all:  docker compose up -d
+#   Stop all:   docker compose down        (data is preserved)
+#   Stop + wipe data: docker compose down -v  (CAREFUL — deletes all data)
+#   See logs:   docker compose logs -f
+#   See status: docker compose ps
+#
+# KEY RULE: Services talk to each other using SERVICE NAME not localhost
+#   Inside Docker: postgresql:5432, mongodb:27017, redis:6379
+#   Outside Docker (your laptop): localhost:5432, localhost:27017 etc.
+# ================================================================
+
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL 15 ──────────────────────────────────────────────
+  # Primary relational database. Row-level security enforces
+  # tenant isolation at DB layer — not just in application code.
+  # alpine = smaller image size, no unnecessary OS packages
+  postgresql:
+    image: postgres:15-alpine
+    container_name: omnidoc_postgresql
+    environment:
+      # These 3 variables are the only ones PostgreSQL reads on startup
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      # "host:container" — your laptop accesses via localhost:5432
+      # but other Docker services use postgresql:5432
+      - "5432:5432"
+    volumes:
+      # Named volume — data survives docker compose down
+      - postgresql_data:/var/lib/postgresql/data
+      # init.sql runs once on first startup, then never again
+      # :ro means read-only — Docker cannot modify our script
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      # pg_isready checks if PostgreSQL is accepting connections
+      # This prevents other services from starting before DB is ready
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s      # check every 5 seconds
+      timeout: 5s       # fail if no response in 5 seconds
+      retries: 10       # try 10 times before marking as unhealthy
+      start_period: 10s # wait 10s before first check (startup grace period)
+    networks:
+      - omnidoc_network
+    restart: unless-stopped
+    # unless-stopped = restart automatically if it crashes,
+    # but NOT if you manually ran docker compose down
+
+
+  # ── MongoDB 7.0 ────────────────────────────────────────────────
+  # Quarantine store for PII-flagged documents.
+  # Schema-less — stores documents in any shape without migrations.
+  mongodb:
+    image: mongo:7.0
+    container_name: omnidoc_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      # mongosh ping verifies MongoDB is accepting connections
+      # --quiet suppresses version banner in logs
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--quiet"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s # MongoDB takes longer to start than PostgreSQL
+    networks:
+      - omnidoc_network
+    restart: unless-stopped
+
+
+  # ── Redis 7.2 ──────────────────────────────────────────────────
+  # Two roles: Celery task broker (Phase 2) + event bus (Phase 5)
+  # alpine = minimal image, faster pull
+  redis:
+    image: redis:7.2-alpine
+    container_name: omnidoc_redis
+    # requirepass sets the password
+    # appendonly yes enables AOF persistence — data survives restarts
+    # appendonly writes every command to disk, so data is never lost
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      # redis-cli ping with password — returns PONG if healthy
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - omnidoc_network
+    restart: unless-stopped
+
+
+  # ── MinIO ──────────────────────────────────────────────────────
+  # S3-compatible object storage for raw uploaded files.
+  # Port 9000 = S3 API (code talks here)
+  # Port 9001 = Web console (you open this in browser to see files)
+  minio:
+    image: minio/minio:latest
+    container_name: omnidoc_minio
+    # server /data = store files in /data inside container
+    # --console-address = run web UI on port 9001
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      # MinIO has a built-in health endpoint at /minio/health/live
+      # curl -f = fail silently with error code if endpoint is down
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - omnidoc_network
+    restart: unless-stopped
+
+
+# ── Network ────────────────────────────────────────────────────
+# Custom bridge network — all services join this network
+# This lets them find each other by service name (postgresql, redis etc.)
+# Without this, containers are isolated and cannot communicate
+networks:
+  omnidoc_network:
+    driver: bridge
+    name: omnidoc_network
+
+
+# ── Named Volumes ──────────────────────────────────────────────
+# Named volumes are managed by Docker — data persists across restarts
+# Location on your Windows machine: \\wsl$\docker-desktop-data\...
+# You never need to access them directly — Docker handles it
+#
+# TO SEE ALL VOLUMES: docker volume ls
+# TO DELETE ONE:      docker volume rm omnidoc_postgresql_data
+# WARNING: deleting a volume deletes all data in it permanently
+volumes:
+  postgresql_data:
+    name: omnidoc_postgresql_data
+  mongodb_data:
+    name: omnidoc_mongodb_data
+  redis_data:
+    name: omnidoc_redis_data
+  minio_data:
+    name: omnidoc_minio_data

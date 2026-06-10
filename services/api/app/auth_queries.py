@@ -138,6 +138,10 @@ async def get_user_by_id(
     Used by the /auth/me endpoint to return current user info.
     tenant_id included for RLS consistency.
     """
+    if isinstance(user_id, str):
+        user_id = uuid.UUID(user_id)
+    if isinstance(tenant_id, str):
+        tenant_id = uuid.UUID(tenant_id)
     row = await pool.fetchrow(
         """
         SELECT id, tenant_id, email, full_name,

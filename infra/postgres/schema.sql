@@ -283,3 +283,115 @@ SELECT
 FROM pg_indexes
 WHERE schemaname = 'public'
 ORDER BY tablename, indexname;
+
+-- ================================================================
+-- TABLE: documents
+-- ================================================================
+-- One row per uploaded document.
+-- Tracks the entire lifecycle of a document from upload to
+-- embedding completion.
+--
+-- compliance_status lifecycle:
+--   pending   → document uploaded, not yet scanned
+--   clean     → passed PII scan, awaiting approval
+--   flagged   → PII detected, needs review
+--   quarantined → failed validation, stored in MongoDB
+--   approved  → manager approved, ready for embedding
+--   rejected  → manager rejected, will not be embedded
+--
+-- processing_status lifecycle:
+--   uploaded     → file in MinIO, record created
+--   processing   → parser/OCR running
+--   processed    → text extracted successfully
+--   embedding    → being embedded into vector store
+--   completed    → fully ingested and queryable
+--   failed       → something went wrong, check error_message
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS documents (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    -- Every document belongs to one tenant — RLS enforced
+    tenant_id           UUID NOT NULL REFERENCES tenants(id)
+                        ON DELETE CASCADE,
+
+    -- Who uploaded this document
+    uploaded_by         UUID NOT NULL REFERENCES users(id)
+                        ON DELETE SET NULL,
+
+    -- Original filename as uploaded by the user
+    original_filename   VARCHAR(500) NOT NULL,
+
+    -- MIME type detected from file content, not just extension
+    -- We detect from content because extensions can be wrong/spoofed
+    -- Examples: application/pdf, image/png, audio/mpeg
+    file_type           VARCHAR(100) NOT NULL,
+
+    -- Size in bytes — used for storage tracking and cost estimation
+    file_size_bytes     BIGINT NOT NULL,
+
+    -- Path inside MinIO bucket
+    -- Format: {tenant_id}/{document_id}/{original_filename}
+    -- Using tenant_id in path adds a second layer of isolation
+    storage_path        VARCHAR(1000) NOT NULL,
+
+    -- PII and compliance tracking
+    -- Default pending — updated after Presidio scan in Phase 3
+    compliance_status   VARCHAR(20) NOT NULL DEFAULT 'pending'
+                        CHECK (compliance_status IN (
+                            'pending', 'clean', 'flagged',
+                            'quarantined', 'approved', 'rejected'
+                        )),
+
+    -- Processing pipeline tracking
+    processing_status   VARCHAR(20) NOT NULL DEFAULT 'uploaded'
+                        CHECK (processing_status IN (
+                            'uploaded', 'processing', 'processed',
+                            'embedding', 'completed', 'failed'
+                        )),
+
+    -- Stores error details if processing_status = 'failed'
+    -- Keeps failed documents reviewable and reprocessable
+    error_message       TEXT,
+
+    -- Populated after text extraction in Phase 3
+    extracted_text_path VARCHAR(1000),
+
+    -- How many vector chunks this document was split into
+    -- Populated after embedding in Phase 3
+    chunk_count         INTEGER,
+
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Query documents by tenant constantly — must be indexed
+CREATE INDEX IF NOT EXISTS idx_documents_tenant_id
+    ON documents(tenant_id);
+
+CREATE INDEX IF NOT EXISTS idx_documents_uploaded_by
+    ON documents(uploaded_by);
+
+-- Filter by status frequently — both statuses indexed together
+CREATE INDEX IF NOT EXISTS idx_documents_statuses
+    ON documents(tenant_id, compliance_status, processing_status);
+
+CREATE INDEX IF NOT EXISTS idx_documents_file_type
+    ON documents(tenant_id, file_type);
+
+-- Enable RLS — documents are strictly tenant-scoped
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documents FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_policy ON documents
+    USING (
+        tenant_id = NULLIF(
+            current_setting('app.current_tenant_id', true), ''
+        )::UUID
+    );
+
+-- Auto-update updated_at on every change
+CREATE OR REPLACE TRIGGER trigger_documents_updated_at
+    BEFORE UPDATE ON documents
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

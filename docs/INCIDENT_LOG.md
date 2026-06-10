@@ -37,3 +37,15 @@ Added __init__.py to services/ and services/api/.
 - Always use plain `postgresql://` with asyncpg, never SQLAlchemy format
 - Always add __init__.py when creating new Python package folders
 - Pin exact versions of packages that have known compatibility issues
+## Incident 002 — Document upload failures
+
+**Date:** 2026-06-10
+
+**ISSUE 1:** MinIO connection failed with NameResolutionError
+**ROOT CAUSE:** MINIO_HOST=minio in .env — 'minio' is a Docker
+service name, not resolvable from outside Docker.
+**FIX:** Changed MINIO_HOST=localhost in .env for local dev.
+**PREVENTION:** Any service running outside Docker must use
+localhost, not Docker service names.
+
+**ISSUE 2:**

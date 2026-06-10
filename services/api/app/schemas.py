@@ -170,3 +170,28 @@ class CurrentUser(BaseModel):
     user_id: str
     tenant_id: str
     role: str
+    
+# ── Document schemas ────────────────────────────────────────────
+class DocumentOut(BaseModel):
+    """
+    Output: what we return about a document after upload.
+    Never includes the raw file bytes — just metadata.
+    """
+    id: UUID
+    tenant_id: UUID
+    uploaded_by: UUID
+    original_filename: str
+    file_type: str
+    file_size_bytes: int
+    storage_path: str
+    compliance_status: str
+    processing_status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class DocumentUploadResponse(BaseModel):
+    """Response returned immediately after a successful upload."""
+    message: str
+    document: DocumentOut

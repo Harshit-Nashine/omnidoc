@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from services.api.app.config import settings
 from services.api.app.database import init_databases, close_databases, ping_all_databases
 from services.api.app.auth_routes import router as auth_router
+from services.api.app.middleware import TenantIsolationMiddleware
 
 # ── Lifespan ────────────────────────────────────────────────────
 # asynccontextmanager turns this into a context manager FastAPI
@@ -75,7 +76,9 @@ app.add_middleware(
     allow_methods=["*"],        # GET, POST, PUT, DELETE, etc.
     allow_headers=["*"],
 )
-
+# Tenant isolation — sets PostgreSQL RLS session variable
+# on every authenticated request. Must be added after CORS.
+app.add_middleware(TenantIsolationMiddleware)
 # Mount auth routes — all endpoints will be at /auth/...
 app.include_router(auth_router)
 # ── Routes ──────────────────────────────────────────────────────

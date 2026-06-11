@@ -1,0 +1,9 @@
+[33mb6cdad8[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m feat(documents): add document upload endpoint with MinIO storage, PostgreSQL record creation, file validation, and cleanup on failure
+[33mfe7d169[m docs: update component docs with auth system entry
+[33me345af3[m feat(auth): add tenant isolation middleware — sets PostgreSQL RLS session variable on every authenticated request
+[33mddc8ab1[m feat(auth): add register, login, and get-me endpoints with JWT tokens, bcrypt password hashing, and protected routes
+[33m371e07a[m docs: update component docs with postgresql schema entry
+[33m9c45302[m feat(db): postgresql schema verified — tenants, users, refresh_tokens with RLS policies and auto-update triggers confirmedcmd
+[33m1b5325a[m feat(api): add fastapi skeleton with health endpoint, database connections to all 4 services, and fix startup errors
+[33mff8d1a9[m feat(infra): add docker-compose with postgresql, mongodb, redis, minio — all with health checks and named volumes
+[33m1134d56[m feat(project): initialize omnidoc project with folder structure, gitignore, env templates, and documentation scaffolding

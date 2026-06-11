@@ -135,6 +135,15 @@ async def upload_document(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create document record. File upload rolled back.",
         )
+# ── Step 6: queue parsing task ──────────────────────────────
+    # Queue async processing task — returns immediately.
+    # Worker picks it up and parses in background.
+    # User polls GET /documents/{id} to check processing_status.
+    from services.api.app.tasks import process_document
+    process_document.delay(
+        document_id=str(document["id"]),
+        tenant_id=str(document["tenant_id"]),
+    )
 
     return DocumentUploadResponse(
         message=(

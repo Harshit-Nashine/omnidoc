@@ -93,3 +93,37 @@ hashing, and tenant-scoped row level security.
 - Login finds user by email only — no tenant slug required yet
 - Refresh token stored in JWT only — not yet persisted to DB
 - Refresh token rotation endpoint not yet built
+
+
+---
+
+## Component: Document Parsing Pipeline
+**Completed:** Phase 3
+
+**What it does:**
+Async pipeline that processes uploaded documents in the background.
+Extracts text from PDFs and images, stores results in MinIO,
+updates document status in PostgreSQL.
+
+**Flow:**
+POST /documents/upload → MinIO (raw file) → PostgreSQL (status: uploaded)
+→ Celery task queued → worker downloads file → parser extracts text
+→ extracted text saved to MinIO as .extracted.txt
+→ PostgreSQL updated (status: processed)
+
+**Parsers:**
+- pdf_parser.py    — pdfplumber, handles multi-column + tables
+- image_parser.py  — Tesseract OCR, English + Hindi
+- router.py        — dispatches to correct parser by file_type
+
+**Files:**
+- services/api/app/parsers/pdf_parser.py
+- services/api/app/parsers/image_parser.py
+- services/api/app/parsers/router.py
+- services/api/app/celery_app.py
+- services/api/app/tasks.py
+
+**Known limitations:**
+- Audio (Whisper), Word, Excel, PowerPoint not yet implemented
+- Scanned multi-page PDFs use image parser on first page only
+- Celery uses --pool=solo on Windows (single worker process)

@@ -127,3 +127,31 @@ POST /documents/upload → MinIO (raw file) → PostgreSQL (status: uploaded)
 - Audio (Whisper), Word, Excel, PowerPoint not yet implemented
 - Scanned multi-page PDFs use image parser on first page only
 - Celery uses --pool=solo on Windows (single worker process)
+
+---
+
+## Component: PII Scanner + Compliance Pipeline
+**Completed:** Phase 3 Part 2
+
+**What it does:**
+Scans extracted document text for personally identifiable
+information using Microsoft Presidio. Routes flagged documents
+to MongoDB quarantine. Updates compliance_status in PostgreSQL.
+
+**PII entities detected:**
+IN_AADHAAR, IN_PAN, PHONE_NUMBER, EMAIL_ADDRESS,
+CREDIT_CARD, IBAN_CODE, PERSON, LOCATION
+
+**Compliance status rules:**
+- clean       → no PII found, ready for approval
+- flagged     → PII detected, stored in MongoDB quarantine
+- quarantined → text too short (< 50 chars), unreadable doc
+
+**Files:**
+- services/api/app/parsers/pii_scanner.py
+- services/api/app/tasks.py (steps 6-8 added)
+
+**Known limitations:**
+- IN_AADHAAR and IN_PAN detection requires specific format
+- PERSON detection has false positives on product/company names
+- Hindi PII not yet detected (Presidio English model only)

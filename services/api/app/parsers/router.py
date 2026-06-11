@@ -64,7 +64,16 @@ def parse_document(
 
     elif file_type == "image":
         return parse_image(file_bytes, filename)
-
+    elif file_type == "text":
+        # Plain text — no parsing needed, just wrap in ParsedDocument
+        text = file_bytes.decode("utf-8", errors="ignore")
+        return ParsedDocument(
+            full_text=text,
+            pages=[text],
+            page_count=1,
+            metadata={"filename": filename},
+            parser_used="plaintext",
+        )
     else:
         # Unsupported types return a placeholder
         # Will be replaced in Phase 4 when Whisper + LibreOffice added

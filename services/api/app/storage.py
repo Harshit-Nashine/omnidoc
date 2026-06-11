@@ -136,6 +136,9 @@ SUPPORTED_FILE_TYPES = {
     ".presentationml.presentation": "powerpoint",
     "application/vnd.ms-excel": "excel",
     "application/msword": "word",
+    #text docs
+    # Plain text files — useful for testing and simple documents
+    "text/plain": "text",
 }
 
 # Maximum file size: 50MB

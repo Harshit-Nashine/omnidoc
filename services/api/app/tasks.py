@@ -164,18 +164,44 @@ async def _process_document_async(
         )
 
         # ── Step 6: update document record ──────────────────────
+       # ── Step 6: scan for PII ─────────────────────────────────
+        from services.api.app.parsers.pii_scanner import scan_for_pii
+        pii_result = scan_for_pii(parsed.full_text)
+
+        # ── Step 7: if flagged — save to MongoDB quarantine ──────
+        if pii_result.compliance_status in ("flagged", "quarantined"):
+            from motor.motor_asyncio import AsyncIOMotorClient
+            from services.api.app.config import settings as s
+
+            mongo_client = AsyncIOMotorClient(s.mongo_url)
+            db = mongo_client[s.mongo_db]
+
+            await db.quarantine.insert_one({
+                "document_id": document_id,
+                "tenant_id": tenant_id,
+                "original_filename": document["original_filename"],
+                "compliance_status": pii_result.compliance_status,
+                "pii_types_found": pii_result.pii_types_found,
+                "summary": pii_result.summary,
+                "extracted_text_preview": parsed.full_text[:500],
+                "storage_path": document["storage_path"],
+            })
+
+            mongo_client.close()
+
+        # ── Step 8: update document record ──────────────────────
         await conn.execute(
             """
             UPDATE documents
             SET
                 processing_status = 'processed',
-                extracted_text_path = $1,
+                compliance_status = $1,
+                extracted_text_path = $2,
                 updated_at = NOW()
-            FROM (SELECT $2::text AS parser) p
             WHERE id = $3
             """,
+            pii_result.compliance_status,
             text_storage_path,
-            parsed.parser_used,
             uuid.UUID(document_id),
         )
 

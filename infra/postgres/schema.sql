@@ -395,3 +395,51 @@ CREATE OR REPLACE TRIGGER trigger_documents_updated_at
     BEFORE UPDATE ON documents
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
+    
+
+-- ================================================================
+-- TABLE: query_cost_log
+-- ================================================================
+-- One row per RAG query. Tracks tokens, latency, cost for
+-- per-user/per-tenant observability (Grafana dashboards later).
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS query_cost_log (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id           UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id             UUID NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+
+    question            TEXT NOT NULL,
+
+    -- Retrieval metrics
+    chunks_retrieved    INTEGER NOT NULL,
+    retrieval_latency_ms INTEGER NOT NULL,
+
+    -- LLM metrics
+    input_tokens        INTEGER NOT NULL DEFAULT 0,
+    output_tokens       INTEGER NOT NULL DEFAULT 0,
+    llm_latency_ms      INTEGER NOT NULL DEFAULT 0,
+
+    total_latency_ms    INTEGER NOT NULL,
+
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_query_cost_log_tenant_id
+    ON query_cost_log(tenant_id);
+
+CREATE INDEX IF NOT EXISTS idx_query_cost_log_user_id
+    ON query_cost_log(tenant_id, user_id);
+
+CREATE INDEX IF NOT EXISTS idx_query_cost_log_created_at
+    ON query_cost_log(created_at);
+
+ALTER TABLE query_cost_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE query_cost_log FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_policy ON query_cost_log
+    USING (
+        tenant_id = NULLIF(
+            current_setting('app.current_tenant_id', true), ''
+        )::UUID
+    );

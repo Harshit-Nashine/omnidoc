@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    
+    # ── Anthropic ────────────────────────────────────────────────
+    anthropic_api_key: str = ""   # empty = LLM synthesis disabled
 
     # ── Computed properties ──────────────────────────────────────
     # These build connection strings from the individual variables above.

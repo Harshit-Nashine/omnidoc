@@ -155,3 +155,41 @@ CREDIT_CARD, IBAN_CODE, PERSON, LOCATION
 - IN_AADHAAR and IN_PAN detection requires specific format
 - PERSON detection has false positives on product/company names
 - Hindi PII not yet detected (Presidio English model only)
+
+
+---
+
+## Component: RAG Pipeline (Embedding + Retrieval)
+**Completed:** Phase 4
+
+**What it does:**
+Embeds approved documents into ChromaDB and allows natural
+language search across them with similarity scoring.
+
+**Flow:**
+Document approved → chunked (400 tokens, 80 overlap) →
+embedded (multilingual-mpnet-base-v2, 768-dim) →
+stored in per-tenant ChromaDB collection →
+query embeds question → cosine similarity search →
+returns top-N chunks with source document_id, page, score
+
+**New endpoints:**
+- POST /documents/{id}/approve — clean docs only, triggers embedding
+- POST /query/                 — natural language search
+
+**Files:**
+- services/api/app/vector_store.py — ChromaDB abstraction, embedding
+- services/api/app/chunker.py      — document chunking logic
+- services/api/app/query_routes.py — search endpoint
+- services/api/app/tasks.py        — embed_document task added
+
+**Key design decisions:**
+- One ChromaDB collection per tenant — isolation beyond RLS
+- paraphrase-multilingual-mpnet-base-v2 — supports Hindi + English
+- Cosine similarity, normalized embeddings
+- 400-token chunks with 80-token overlap
+
+**Known limitations:**
+- No LLM synthesis yet — returns raw chunks (Phase 5 adds this)
+- ChromaDB local persistent storage only (./chroma_data/)
+- No reranking yet (MMR/cross-encoder planned for Phase 5)

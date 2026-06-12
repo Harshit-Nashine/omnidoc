@@ -193,3 +193,32 @@ returns top-N chunks with source document_id, page, score
 - No LLM synthesis yet — returns raw chunks (Phase 5 adds this)
 - ChromaDB local persistent storage only (./chroma_data/)
 - No reranking yet (MMR/cross-encoder planned for Phase 5)
+---
+
+## Component: LLM Synthesis + Cost Tracking
+**Completed:** Phase 5
+
+**What it does:**
+Synthesizes natural language answers from retrieved chunks using
+Claude. Logs token usage and latency for every query to enable
+per-user/per-tenant cost dashboards.
+
+**Flow:**
+Retrieve chunks (timed) → build context → call Claude with
+numbered sources → return answer + chunks → log to query_cost_log
+
+**Graceful degradation:**
+If ANTHROPIC_API_KEY is empty or invalid, answer=None, chunks
+still returned, llm fields = 0 in cost log. System remains fully
+functional in retrieval-only mode.
+
+**Files:**
+- services/api/app/llm_service.py   — Anthropic client, timing
+- services/api/app/cost_queries.py  — cost log insert
+- services/api/app/query_routes.py  — updated with full pipeline
+- infra/postgres/schema.sql         — query_cost_log table
+
+**Known limitations:**
+- No LLM response caching — identical questions re-call the API
+- claude-haiku-4-5 hardcoded — not configurable yet
+- No streaming response (full answer returned at once)

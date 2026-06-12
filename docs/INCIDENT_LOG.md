@@ -49,3 +49,34 @@ service name, not resolvable from outside Docker.
 localhost, not Docker service names.
 
 **ISSUE 2:**
+
+
+## Incident 003 — Phase 4 dependency conflicts (Windows + Python 3.13)
+
+**Date:** 2026-06-12
+
+**ISSUE:** Chain of package conflicts installing chromadb,
+langchain, sentence-transformers, tiktoken on Windows.
+
+**ROOT CAUSES:**
+1. numpy 1.26.4 has OverflowError bug on Python 3.13 (longdouble)
+2. chromadb 0.5.0 incompatible with numpy 2.x (np.float_ removed)
+3. chromadb 0.5.23 downgrades tokenizers, breaks transformers
+4. tiktoken 0.7.0 has no Python 3.13 wheel
+
+**FIXES:**
+1. numpy 2.1.0 (skip 1.26.4 entirely)
+2. chromadb 0.5.23 (numpy 2.x compatible)
+3. tokenizers 0.20.3 + transformers 4.46.0 (compatible pair)
+4. tiktoken 0.8.0 (first version with 3.13 wheel)
+
+**PREVENTION:**
+On Windows + Python 3.13, ML library versions from tutorials/docs
+are often stale. When a version conflict loop occurs, identify
+the OLDEST package's constraint and work backward — usually
+chromadb or transformers is the anchor. Pin all 4 together in
+requirements.txt as a tested-working set.
+
+**FINAL WORKING VERSIONS:**
+numpy==2.1.0, chromadb==0.5.23, tokenizers==0.20.3,
+transformers==4.46.0, sentence-transformers==3.0.1

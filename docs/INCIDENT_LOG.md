@@ -80,3 +80,20 @@ requirements.txt as a tested-working set.
 **FINAL WORKING VERSIONS:**
 numpy==2.1.0, chromadb==0.5.23, tokenizers==0.20.3,
 transformers==4.46.0, sentence-transformers==3.0.1
+
+## Incident 004 — Anthropic SDK + LLM integration
+
+**Date:** 2026-06-12
+
+**ISSUE 1:** anthropic 0.34.2 raised TypeError on Client init
+**ROOT CAUSE:** incompatible with newer httpx version (proxies kwarg removed)
+**FIX:** Upgraded to anthropic==0.40.0
+
+**ISSUE 2:** Invalid/missing API key crashed entire query with 500
+**ROOT CAUSE:** No try/except around client.messages.create()
+**FIX:** Wrapped LLM call in try/except — returns graceful fallback
+message, latency still recorded, query never 500s due to LLM issues
+
+**PREVENTION:** Any external API call (LLM, third-party) must be
+wrapped in try/except with a fallback — external service failures
+should never crash the core retrieval functionality.

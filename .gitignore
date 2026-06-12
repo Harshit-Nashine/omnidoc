@@ -43,4 +43,5 @@ mlruns/
 
 # ── Logs ──────────────────────────────────────────────────────
 *.log
-logs/
+logs/chroma_data/ 
+chroma_data/ 

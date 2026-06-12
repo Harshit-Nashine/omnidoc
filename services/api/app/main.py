@@ -22,7 +22,7 @@ from services.api.app.database import init_databases, close_databases, ping_all_
 from services.api.app.auth_routes import router as auth_router
 from services.api.app.middleware import TenantIsolationMiddleware
 from services.api.app.document_routes import router as document_router
-
+from services.api.app.query_routes import router as query_router
 # ── Lifespan ────────────────────────────────────────────────────
 # asynccontextmanager turns this into a context manager FastAPI
 # uses for startup and shutdown events.
@@ -83,6 +83,7 @@ app.add_middleware(TenantIsolationMiddleware)
 # Mount auth routes — all endpoints will be at /auth/...
 app.include_router(auth_router)
 app.include_router(document_router)
+app.include_router(query_router)
 # ── Routes ──────────────────────────────────────────────────────
 
 @app.get("/")

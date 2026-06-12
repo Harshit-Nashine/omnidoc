@@ -235,3 +235,121 @@ async def _update_document_status(
         )
     finally:
         await conn.close()
+
+@celery_app.task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+    name="tasks.embed_document",
+)
+def embed_document(self, document_id: str, tenant_id: str):
+    """
+    Embeds an approved document into the ChromaDB vector store.
+    Called after a document is approved via the approval endpoint.
+
+    Steps:
+        1. Fetch extracted text from MinIO
+        2. Chunk the text
+        3. Embed chunks using sentence-transformers
+        4. Store in ChromaDB tenant collection
+        5. Update PostgreSQL status to 'completed'
+    """
+    try:
+        asyncio.run(
+            _embed_document_async(document_id, tenant_id)
+        )
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+async def _embed_document_async(
+    document_id: str,
+    tenant_id: str,
+) -> None:
+    """Async implementation of document embedding."""
+    import asyncpg
+    from services.api.app.config import settings
+    from services.api.app.storage import get_minio_client
+    from services.api.app.chunker import chunk_document
+    from services.api.app.vector_store import add_chunks_to_store
+
+    conn = await asyncpg.connect(settings.postgres_url)
+
+    try:
+        # ── Step 1: fetch document details ──────────────────────
+        row = await conn.fetchrow(
+            """
+            SELECT id, tenant_id, storage_path, file_type,
+                   original_filename, extracted_text_path
+            FROM documents
+            WHERE id = $1
+            """,
+            uuid.UUID(document_id),
+        )
+
+        if row is None:
+            raise ValueError(f"Document {document_id} not found")
+
+        document = dict(row)
+
+        if not document["extracted_text_path"]:
+            raise ValueError(
+                f"Document {document_id} has no extracted text. "
+                f"Run processing first."
+            )
+
+        # ── Step 2: download extracted text from MinIO ───────────
+        minio_client = get_minio_client()
+        from services.api.app.config import settings as s
+
+        response = minio_client.get_object(
+            bucket_name=s.minio_bucket_documents,
+            object_name=document["extracted_text_path"],
+        )
+        extracted_text = response.read().decode("utf-8")
+        response.close()
+
+        # ── Step 3: chunk the text ───────────────────────────────
+        chunks = chunk_document(
+            full_text=extracted_text,
+            pages=extracted_text.split("\n\n--- PAGE BREAK ---\n\n"),
+        )
+
+        if not chunks:
+            raise ValueError(
+                f"Document {document_id} produced no chunks. "
+                f"Text may be empty or too short."
+            )
+
+        # ── Step 4: embed and store in ChromaDB ──────────────────
+        chunk_dicts = [
+            {
+                "text": chunk.text,
+                "chunk_id": chunk.chunk_id,
+                "page": chunk.page,
+            }
+            for chunk in chunks
+        ]
+
+        chunks_added = add_chunks_to_store(
+            tenant_id=tenant_id,
+            document_id=document_id,
+            chunks=chunk_dicts,
+        )
+
+        # ── Step 5: update PostgreSQL ────────────────────────────
+        await conn.execute(
+            """
+            UPDATE documents
+            SET
+                processing_status = 'completed',
+                chunk_count = $1,
+                updated_at = NOW()
+            WHERE id = $2
+            """,
+            chunks_added,
+            uuid.UUID(document_id),
+        )
+
+    finally:
+        await conn.close()

@@ -7,7 +7,7 @@
 # GET  /documents/        — list all documents for current tenant
 # GET  /documents/{id}    — get a single document by ID
 # ================================================================
-
+from uuid import UUID
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi import Query
@@ -205,3 +205,89 @@ async def get_document(
         )
 
     return DocumentOut(**document)
+@router.post("/{document_id}/approve", response_model=DocumentOut)
+async def approve_document(
+    document_id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    pool=Depends(get_postgresql_pool),
+):
+    """
+    Approves a clean document for embedding into the knowledge base.
+    Only admin and editor roles can approve documents.
+    Only documents with compliance_status='clean' can be approved.
+    Triggers embedding task after approval.
+    """
+    # Check role — viewers cannot approve
+    if current_user["role"] not in ("admin", "editor"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin and editor roles can approve documents.",
+        )
+
+    tenant_id = uuid.UUID(str(current_user["tenant_id"]))
+
+    # Fetch the document
+    document = await get_document_by_id(
+        pool=pool,
+        document_id=document_id,
+        tenant_id=tenant_id,
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document {document_id} not found.",
+        )
+
+    # Only clean documents can be approved
+    if document["compliance_status"] != "clean":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Document cannot be approved. "
+                f"Current compliance_status: "
+                f"{document['compliance_status']}. "
+                f"Only 'clean' documents can be approved."
+            ),
+        )
+
+    # Only processed documents can be approved
+    if document["processing_status"] != "processed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Document is not ready for approval. "
+                f"Current processing_status: "
+                f"{document['processing_status']}. "
+                f"Wait for processing to complete."
+            ),
+        )
+
+    # Update status to approved
+    await pool.execute(
+        """
+        UPDATE documents
+        SET compliance_status = 'approved',
+            processing_status = 'embedding',
+            updated_at = NOW()
+        WHERE id = $1 AND tenant_id = $2
+        """,
+        document_id,
+        tenant_id,
+    )
+
+    # Queue embedding task
+    from services.api.app.tasks import embed_document
+    embed_document.delay(
+        document_id=str(document_id),
+        tenant_id=str(tenant_id),
+    )
+
+    # Return updated document
+    updated = await get_document_by_id(
+        pool=pool,
+        document_id=document_id,
+        tenant_id=tenant_id,
+    )
+
+    return DocumentOut(**updated)

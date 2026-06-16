@@ -137,7 +137,41 @@ services:
     networks:
       - omnidoc_network
     restart: unless-stopped
+# ── Prometheus ───────────────────────────────────────────────
+  # Scrapes /metrics from our API every 15s and stores time-series data
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: omnidoc_prometheus
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - omnidoc_network
+    restart: unless-stopped
+    # extra_hosts lets the container reach your laptop's localhost
+    # where uvicorn is running (outside Docker)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
+  # ── Grafana ──────────────────────────────────────────────────
+  # Dashboards visualizing Prometheus metrics
+  grafana:
+    image: grafana/grafana:latest
+    container_name: omnidoc_grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    networks:
+      - omnidoc_network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
 
 # ── Network ────────────────────────────────────────────────────
 # Custom bridge network — all services join this network
@@ -166,3 +200,7 @@ volumes:
     name: omnidoc_redis_data
   minio_data:
     name: omnidoc_minio_data
+  prometheus_data:
+    name: omnidoc_prometheus_data
+  grafana_data:
+    name: omnidoc_grafana_data

@@ -1,0 +1,17 @@
+# ================================================================
+# infra/prometheus/prometheus.yml
+# ================================================================
+# Tells Prometheus where to scrape metrics from and how often.
+#
+# host.docker.internal: special DNS name Docker provides to let
+# containers reach services running on your laptop (uvicorn runs
+# outside Docker on localhost:8000).
+# ================================================================
+
+global:
+  scrape_interval: 15s   # how often to scrape targets
+
+scrape_configs:
+  - job_name: "omnidoc_api"
+    static_configs:
+      - targets: ["host.docker.internal:8000"]

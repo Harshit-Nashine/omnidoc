@@ -14,6 +14,7 @@ from fastapi import Query
 
 from services.api.app.database import get_postgresql_pool
 from services.api.app.auth_routes import get_current_user
+from services.api.app.metrics import documents_uploaded_total, documents_compliance_total
 from services.api.app.schemas import DocumentOut, DocumentUploadResponse
 from services.api.app.storage import (
     upload_file_to_minio,
@@ -144,7 +145,11 @@ async def upload_document(
         document_id=str(document["id"]),
         tenant_id=str(document["tenant_id"]),
     )
-
+# Record metric: document uploaded
+    documents_uploaded_total.labels(
+        tenant_id=str(tenant_id),
+        file_type=file_category,
+    ).inc()
     return DocumentUploadResponse(
         message=(
             f"Document '{file.filename}' uploaded successfully. "

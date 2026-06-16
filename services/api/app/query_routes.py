@@ -24,6 +24,12 @@ from services.api.app.auth_routes import get_current_user
 from services.api.app.vector_store import query_vector_store
 from services.api.app.llm_service import synthesize_answer
 from services.api.app.cost_queries import log_query_cost
+from services.api.app.metrics import (
+    rag_queries_total,
+    rag_retrieval_duration_seconds,
+    rag_llm_duration_seconds,
+    rag_tokens_total,
+)
 
 
 router = APIRouter(prefix="/query", tags=["Query"])
@@ -114,7 +120,10 @@ async def query_documents(
         )
         for r in results
     ]
-
+    rag_queries_total.labels(tenant_id=str(tenant_id)).inc()
+    rag_retrieval_duration_seconds.labels(
+        tenant_id=str(tenant_id)
+    ).observe(retrieval_latency_ms / 1000)
     # ── Step 2: LLM synthesis — timed internally ─────────────────
     answer = None
     input_tokens = 0
@@ -133,7 +142,18 @@ async def query_documents(
             llm_latency_ms = llm_result.latency_ms
 
     total_latency_ms = int((time.perf_counter() - overall_start) * 1000)
-
+    
+    if llm_latency_ms > 0:
+        rag_llm_duration_seconds.labels(
+            tenant_id=str(tenant_id)
+        ).observe(llm_latency_ms / 1000)
+        rag_tokens_total.labels(
+            tenant_id=str(tenant_id), token_type="input"
+        ).inc(input_tokens)
+        rag_tokens_total.labels(
+            tenant_id=str(tenant_id), token_type="output"
+        ).inc(output_tokens)
+        
     # ── Step 3: log cost/performance ─────────────────────────────
     await log_query_cost(
         pool=pool,

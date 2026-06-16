@@ -23,6 +23,13 @@ from services.api.app.auth_routes import router as auth_router
 from services.api.app.middleware import TenantIsolationMiddleware
 from services.api.app.document_routes import router as document_router
 from services.api.app.query_routes import router as query_router
+from prometheus_client import make_asgi_app, generate_latest, CONTENT_TYPE_LATEST
+from fastapi import Response
+import time
+from services.api.app.metrics import (
+    http_requests_total,
+    http_request_duration_seconds,
+)
 # ── Lifespan ────────────────────────────────────────────────────
 # asynccontextmanager turns this into a context manager FastAPI
 # uses for startup and shutdown events.
@@ -77,6 +84,37 @@ app.add_middleware(
     allow_methods=["*"],        # GET, POST, PUT, DELETE, etc.
     allow_headers=["*"],
 )
+# ── Prometheus metrics middleware ────────────────────────────────
+# Records every HTTP request's method, path, status code, and duration.
+# This runs on every request — lightweight, no DB calls.
+@app.middleware("http")
+async def prometheus_middleware(request, call_next):
+    start_time = time.perf_counter()
+
+    response = await call_next(request)
+
+    duration = time.perf_counter() - start_time
+
+    # Use route path template, not raw URL, to avoid high cardinality
+    # e.g. /documents/{document_id} not /documents/abc-123-def
+    endpoint = request.url.path
+    for route in app.routes:
+        if hasattr(route, "path") and route.path_regex.match(request.url.path):
+            endpoint = route.path
+            break
+
+    http_requests_total.labels(
+        method=request.method,
+        endpoint=endpoint,
+        status_code=response.status_code,
+    ).inc()
+
+    http_request_duration_seconds.labels(
+        method=request.method,
+        endpoint=endpoint,
+    ).observe(duration)
+
+    return response
 # Tenant isolation — sets PostgreSQL RLS session variable
 # on every authenticated request. Must be added after CORS.
 app.add_middleware(TenantIsolationMiddleware)
@@ -127,3 +165,15 @@ async def health_check():
         "databases": db_status,
         "api_version": "0.1.0",
     }
+@app.get("/metrics")
+async def metrics():
+    """
+    Prometheus scrape endpoint.
+    Returns all metrics in Prometheus text exposition format.
+    Prometheus server polls this every 15 seconds (configured
+    in prometheus.yml).
+    """
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST,
+    )

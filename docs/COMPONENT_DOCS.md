@@ -222,3 +222,39 @@ functional in retrieval-only mode.
 - No LLM response caching — identical questions re-call the API
 - claude-haiku-4-5 hardcoded — not configurable yet
 - No streaming response (full answer returned at once)
+---
+
+## Component: Observability Stack
+**Completed:** Phase 6
+
+**What it does:**
+Full metrics collection and visualization. Prometheus scrapes
+the API every 15 seconds. Grafana visualizes trends over time.
+
+**Grafana Dashboard: OmniDoc Overview**
+- Request Volume by Endpoint   — total HTTP requests per route
+- Average Latency per Endpoint — request duration per route
+- Documents Uploaded           — count by file_type
+- RAG Query Volume             — total semantic queries
+- RAG Retrieval Latency        — vector search duration
+- Token Usage                  — LLM input/output tokens
+
+**Metrics exposed at /metrics:**
+- omnidoc_http_requests_total
+- omnidoc_http_request_duration_seconds
+- omnidoc_documents_uploaded_total
+- omnidoc_rag_queries_total
+- omnidoc_rag_retrieval_duration_seconds
+- omnidoc_rag_tokens_total
+- omnidoc_documents_in_knowledge_base
+
+**Access:**
+- Prometheus: http://localhost:9090
+- Grafana:    http://localhost:3000 (admin/admin)
+- Metrics:    http://localhost:8000/metrics
+
+**Files:**
+- services/api/app/metrics.py         — metric definitions
+- services/api/app/main.py            — middleware + /metrics endpoint
+- infra/prometheus/prometheus.yml     — scrape config
+- docker-compose.yml                  — prometheus + grafana services

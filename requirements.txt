@@ -1,6 +1,7 @@
 aiohappyeyeballs==2.6.2
 aiohttp==3.14.1
 aiosignal==1.4.0
+aiosmtplib==3.0.1
 amqp==5.3.1
 annotated-doc==0.0.4
 annotated-types==0.7.0
@@ -52,7 +53,7 @@ h11==0.16.0
 hf-xet==1.5.1
 httpcore==1.0.9
 httptools==0.8.0
-httpx==0.28.1
+httpx==0.27.0
 huggingface_hub==0.36.2
 idna==3.18
 importlib_resources==7.1.0

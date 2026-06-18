@@ -49,7 +49,11 @@ async def lifespan(app: FastAPI):
     # Open all database connections — app will not start if any fail
     await init_databases()
     print("All database connections established successfully.")
-
+# Initialize Redis Streams consumer group for document events
+    from services.api.app.events import ensure_consumer_group
+    await ensure_consumer_group()
+    print("Redis Streams consumer group initialized.")
+    
     yield  # App runs here — handling all incoming requests
 
     # ── SHUTDOWN ─────────────────────────────────────────────────

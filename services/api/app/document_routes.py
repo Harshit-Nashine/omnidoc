@@ -16,6 +16,8 @@ from services.api.app.database import get_postgresql_pool
 from services.api.app.auth_routes import get_current_user
 from services.api.app.metrics import documents_uploaded_total, documents_compliance_total
 from services.api.app.schemas import DocumentOut, DocumentUploadResponse
+from services.api.app.events import emit_document_event, DocumentEvent
+from services.api.app.notifications import notify_document_event
 from services.api.app.storage import (
     upload_file_to_minio,
     SUPPORTED_FILE_TYPES,
@@ -144,6 +146,24 @@ async def upload_document(
     process_document.delay(
         document_id=str(document["id"]),
         tenant_id=str(document["tenant_id"]),
+    )
+    
+    # Emit upload event to Redis Streams
+    await emit_document_event(
+        event_type=DocumentEvent.UPLOADED,
+        document_id=str(document["id"]),
+        tenant_id=str(document["tenant_id"]),
+        user_id=str(current_user["id"]),
+        payload={"filename": document["original_filename"]},
+    )
+
+    # Send notification (email/Slack if configured)
+    await notify_document_event(
+        event_type=DocumentEvent.UPLOADED,
+        document_id=str(document["id"]),
+        filename=document["original_filename"],
+        tenant_name=str(current_user["tenant_id"]),
+        user_email=current_user["email"],
     )
 # Record metric: document uploaded
     documents_uploaded_total.labels(
@@ -282,12 +302,24 @@ async def approve_document(
     )
 
     # Queue embedding task
-    from services.api.app.tasks import embed_document
-    embed_document.delay(
+    
+    
+# Emit approval event
+    await emit_document_event(
+        event_type=DocumentEvent.APPROVED,
         document_id=str(document_id),
         tenant_id=str(tenant_id),
+        user_id=str(current_user["id"]),
+        payload={"filename": document["original_filename"]},
     )
 
+    await notify_document_event(
+        event_type=DocumentEvent.APPROVED,
+        document_id=str(document_id),
+        filename=document["original_filename"],
+        tenant_name=str(tenant_id),
+        user_email=current_user["email"],
+    )
     # Return updated document
     updated = await get_document_by_id(
         pool=pool,

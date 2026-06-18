@@ -69,7 +69,14 @@ class Settings(BaseSettings):
     # ── Computed properties ──────────────────────────────────────
     # These build connection strings from the individual variables above.
     # We compute them here so no other file needs to know the format.
-
+    # ── Notifications ────────────────────────────────────────────
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "noreply@omnidoc.ai"
+    slack_webhook_url: str = ""
+    notifications_enabled: bool = False
     @property
     def postgres_url(self) -> str:
         # asyncpg uses postgresql:// not postgres://

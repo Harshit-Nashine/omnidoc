@@ -443,3 +443,36 @@ CREATE POLICY tenant_isolation_policy ON query_cost_log
             current_setting('app.current_tenant_id', true), ''
         )::UUID
     );
+-- ================================================================
+-- TABLE: audit_log
+-- ================================================================
+-- Immutable record of every document state change.
+-- Written by the audit consumer for every Redis Stream event.
+-- Used for compliance reporting and debugging.
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id         UUID REFERENCES users(id) ON DELETE SET NULL,
+    document_id     UUID,
+    event_type      VARCHAR(50) NOT NULL,
+    payload         JSONB,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_tenant_id
+    ON audit_log(tenant_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_audit_log_document_id
+    ON audit_log(document_id);
+
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
+
+CREATE POLICY tenant_isolation_policy ON audit_log
+    USING (
+        tenant_id = NULLIF(
+            current_setting('app.current_tenant_id', true), ''
+        )::UUID
+    );

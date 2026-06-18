@@ -258,3 +258,42 @@ the API every 15 seconds. Grafana visualizes trends over time.
 - services/api/app/main.py            — middleware + /metrics endpoint
 - infra/prometheus/prometheus.yml     — scrape config
 - docker-compose.yml                  — prometheus + grafana services
+
+---
+
+## Component: Notification & Workflow Engine
+**Completed:** Phase 7
+
+**What it does:**
+Event-driven notification system. Every document state change
+emits a Redis Streams event. Consumers dispatch email and Slack
+notifications. Audit log records every event permanently.
+
+**Events emitted:**
+- document.uploaded   → on POST /documents/upload
+- document.approved   → on POST /documents/{id}/approve
+- document.processed  → (emitted by Celery worker — Phase 8)
+- document.flagged    → (emitted by Celery worker — Phase 8)
+- document.embedded   → (emitted by Celery worker — Phase 8)
+- document.failed     → (emitted by Celery worker — Phase 8)
+
+**Redis Stream:**
+- Stream name: omnidoc:document_events
+- Consumer group: omnidoc_notifications
+- Messages persist even if consumers are down
+
+**Notification channels:**
+- Email via SMTP (aiosmtplib) — enable with NOTIFICATIONS_ENABLED=true
+- Slack via incoming webhook — set SLACK_WEBHOOK_URL in .env
+- Both disabled by default — graceful no-op when unconfigured
+
+**Files:**
+- services/api/app/events.py        — Redis Streams emit/consume
+- services/api/app/notifications.py — email + Slack dispatchers
+- infra/postgres/schema.sql         — audit_log table added
+
+**Known limitations:**
+- Celery worker events not yet wired (Phase 8)
+- No email templates yet — plain text only
+- Consumer group reader not yet implemented (events emitted but
+  not consumed by a background reader loop)

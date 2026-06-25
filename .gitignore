@@ -45,3 +45,7 @@ mlruns/
 *.log
 logs/chroma_data/ 
 chroma_data/ 
+
+
+!.dvc
+/test_clean.pdf

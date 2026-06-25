@@ -24,6 +24,7 @@ from services.api.app.auth_routes import get_current_user
 from services.api.app.vector_store import query_vector_store
 from services.api.app.llm_service import synthesize_answer
 from services.api.app.cost_queries import log_query_cost
+from services.api.app.ml_tracking import log_query_metrics
 from services.api.app.metrics import (
     rag_queries_total,
     rag_retrieval_duration_seconds,
@@ -167,7 +168,14 @@ async def query_documents(
         llm_latency_ms=llm_latency_ms,
         total_latency_ms=total_latency_ms,
     )
-
+# Log to MLflow for retrieval quality tracking
+    if chunks:
+        log_query_metrics(
+            question=body.question,
+            chunks_retrieved=len(chunks),
+            retrieval_latency_ms=retrieval_latency_ms,
+            top_score=chunks[0].score if chunks else 0.0,
+        )
     return QueryResponse(
         question=body.question,
         answer=answer,

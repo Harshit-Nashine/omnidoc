@@ -1,0 +1,27 @@
+schema: '2.0'
+stages:
+  generate_test_data:
+    cmd: python make_test_pdf.py
+    deps:
+    - path: make_test_pdf.py
+      hash: md5
+      md5: 4fcb4c8dca32f169dc7d3e1fbe6c0efe
+      size: 638
+    outs:
+    - path: test_clean.pdf
+      hash: md5
+      md5: c953b133f7af21f194bc36ef0ba5fbf2
+      size: 1688
+  track_embeddings:
+    cmd: echo "ChromaDB store snapshot recorded"
+    deps:
+    - path: chroma_data
+      hash: md5
+      md5: 3a9fd380ebe87ce9a9acecf0cd5fc331.dir
+      size: 3392228
+      nfiles: 5
+    outs:
+    - path: data/embedding_snapshot.txt
+      hash: md5
+      md5: d41d8cd98f00b204e9800998ecf8427e
+      size: 0

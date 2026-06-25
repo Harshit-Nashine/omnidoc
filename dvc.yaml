@@ -1,0 +1,37 @@
+# ================================================================
+# dvc.yaml — DVC pipeline definition
+# ================================================================
+# Defines reproducible data processing stages.
+# Run with: dvc repro
+#
+# Each stage has:
+#   cmd:    the command to run
+#   deps:   files that trigger re-run when changed
+#   outs:   files produced (tracked by DVC)
+#
+# This pipeline tracks our test data and embedding artifacts.
+# In production, add stages for: data download, preprocessing,
+# model training, evaluation.
+# ================================================================
+
+stages:
+
+  # Stage 1: Generate test documents
+  # Re-runs if the script changes
+  generate_test_data:
+    cmd: python make_test_pdf.py
+    deps:
+      - make_test_pdf.py
+    outs:
+      - test_clean.pdf
+
+  # Stage 2: Track the ChromaDB store
+  # Re-runs if new documents are embedded
+  # (chroma_data changes when new docs are added)
+  track_embeddings:
+    cmd: echo "ChromaDB store snapshot recorded"
+    deps:
+      - chroma_data
+    outs:
+      - data/embedding_snapshot.txt
+    always_changed: true

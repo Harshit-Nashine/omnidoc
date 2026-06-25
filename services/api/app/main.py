@@ -25,6 +25,7 @@ from services.api.app.document_routes import router as document_router
 from services.api.app.query_routes import router as query_router
 from services.api.app.audit_routes import router as audit_router
 from prometheus_client import make_asgi_app, generate_latest, CONTENT_TYPE_LATEST
+from services.api.app.ml_tracking import setup_mlflow
 from fastapi import Response
 import time
 
@@ -55,6 +56,8 @@ async def lifespan(app: FastAPI):
     from services.api.app.events import ensure_consumer_group
     await ensure_consumer_group()
     print("Redis Streams consumer group initialized.")
+    # Initialize MLflow experiment tracking
+    setup_mlflow()
     
     yield  # App runs here — handling all incoming requests
 

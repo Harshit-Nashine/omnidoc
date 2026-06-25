@@ -49,3 +49,4 @@ chroma_data/
 
 !.dvc
 /test_clean.pdf
+mlruns.db 

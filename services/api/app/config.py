@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     # ── MLflow ───────────────────────────────────────────────────
-    mlflow_tracking_uri: str = "./mlruns"
+    mlflow_tracking_uri: str = "sqlite:///mlruns.db"
     mlflow_experiment_name: str = "omnidoc_embeddings"
     # ── Anthropic ────────────────────────────────────────────────
     anthropic_api_key: str = ""   # empty = LLM synthesis disabled

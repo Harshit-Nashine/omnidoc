@@ -297,3 +297,37 @@ notifications. Audit log records every event permanently.
 - No email templates yet — plain text only
 - Consumer group reader not yet implemented (events emitted but
   not consumed by a background reader loop)
+
+  ---
+
+## Component: MLOps — DVC + MLflow
+**Completed:** Phase 9
+
+**What it does:**
+Data versioning with DVC (backed by MinIO) and experiment
+tracking with MLflow. Every RAG query logs retrieval quality
+metrics. Model runs are comparable over time.
+
+**DVC:**
+- Remote: MinIO s3://dvc-store bucket
+- Tracks: test data files, embedding snapshots
+- Pipeline: dvc.yaml defines reproducible stages
+- Command: dvc repro to re-run pipeline
+
+**MLflow:**
+- Backend: SQLite (mlruns.db)
+- Experiment: omnidoc_embeddings
+- Logged per query: question_length, chunks_retrieved,
+  retrieval_latency_ms, top_similarity_score
+- UI: mlflow ui --port 5000 --backend-store-uri sqlite:///mlruns.db
+
+**Files:**
+- services/api/app/ml_tracking.py  — MLflow logging functions
+- dvc.yaml                          — DVC pipeline definition
+- .dvc/config                       — DVC remote configuration
+- data/embedding_snapshot.txt       — DVC tracked artifact
+
+**Known limitations:**
+- MLflow 3.14 UI shows runs under Model training tab not GenAI
+- No automated retraining trigger yet (drift detection Phase 10)
+- DVC push to MinIO not yet tested end-to-end

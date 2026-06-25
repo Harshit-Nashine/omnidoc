@@ -18,6 +18,7 @@ from services.api.app.metrics import documents_uploaded_total, documents_complia
 from services.api.app.schemas import DocumentOut, DocumentUploadResponse
 from services.api.app.events import emit_document_event, DocumentEvent
 from services.api.app.notifications import notify_document_event
+from services.api.app.audit_queries import write_audit_log
 from services.api.app.storage import (
     upload_file_to_minio,
     SUPPORTED_FILE_TYPES,
@@ -44,6 +45,7 @@ async def upload_document(
     current_user: dict = Depends(get_current_user),
     pool=Depends(get_postgresql_pool),
 ):
+     
     """
     Uploads a document to MinIO and creates a PostgreSQL record.
 
@@ -165,6 +167,18 @@ async def upload_document(
         tenant_name=str(current_user["tenant_id"]),
         user_email=current_user["email"],
     )
+# Write to audit log
+    await write_audit_log(
+        pool=pool,
+        tenant_id=tenant_id,
+        event_type="document.uploaded",
+        document_id=str(document["id"]),
+        user_id=str(current_user["id"]),
+        payload={"filename": document["original_filename"]},
+    )
+
+
+
 # Record metric: document uploaded
     documents_uploaded_total.labels(
         tenant_id=str(tenant_id),
@@ -302,9 +316,13 @@ async def approve_document(
     )
 
     # Queue embedding task
-    
-    
-# Emit approval event
+    from services.api.app.tasks import embed_document
+    embed_document.delay(
+        document_id=str(document_id),
+        tenant_id=str(tenant_id),
+    )
+
+    # Emit approval event
     await emit_document_event(
         event_type=DocumentEvent.APPROVED,
         document_id=str(document_id),
@@ -313,6 +331,14 @@ async def approve_document(
         payload={"filename": document["original_filename"]},
     )
 
+    await write_audit_log(
+        pool=pool,
+        tenant_id=tenant_id,
+        event_type="document.approved",
+        document_id=str(document_id),
+        user_id=str(current_user["id"]),
+        payload={"filename": document["original_filename"]},
+    )
     await notify_document_event(
         event_type=DocumentEvent.APPROVED,
         document_id=str(document_id),

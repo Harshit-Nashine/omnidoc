@@ -23,9 +23,11 @@ from services.api.app.auth_routes import router as auth_router
 from services.api.app.middleware import TenantIsolationMiddleware
 from services.api.app.document_routes import router as document_router
 from services.api.app.query_routes import router as query_router
+from services.api.app.audit_routes import router as audit_router
 from prometheus_client import make_asgi_app, generate_latest, CONTENT_TYPE_LATEST
 from fastapi import Response
 import time
+
 from services.api.app.metrics import (
     http_requests_total,
     http_request_duration_seconds,
@@ -126,6 +128,7 @@ app.add_middleware(TenantIsolationMiddleware)
 app.include_router(auth_router)
 app.include_router(document_router)
 app.include_router(query_router)
+app.include_router(audit_router)
 # ── Routes ──────────────────────────────────────────────────────
 
 @app.get("/")

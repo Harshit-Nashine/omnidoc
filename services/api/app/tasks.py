@@ -204,7 +204,41 @@ async def _process_document_async(
             text_storage_path,
             uuid.UUID(document_id),
         )
+# ── Step 9: emit Redis Stream event ─────────────────────
+        # Import here to avoid circular imports at module level
+        import redis.asyncio as aioredis
+        from services.api.app.config import settings as s
 
+        redis_client = aioredis.from_url(
+            f"redis://:{s.redis_password}@{s.redis_host}:{s.redis_port}",
+            decode_responses=True,
+        )
+
+        # Determine which event to emit based on compliance result
+        if pii_result.compliance_status == "clean":
+            event_type = "document.processed"
+        else:
+            event_type = "document.flagged"
+
+        import json
+        await redis_client.xadd(
+            "omnidoc:document_events",
+            {
+                "event_type": event_type,
+                "document_id": document_id,
+                "tenant_id": tenant_id,
+                "user_id": "system",
+                "timestamp": __import__('datetime').datetime.now(
+                    __import__('datetime').timezone.utc
+                ).isoformat(),
+                "payload": json.dumps({
+                    "compliance_status": pii_result.compliance_status,
+                    "pii_types": pii_result.pii_types_found,
+                    "parser_used": parsed.parser_used,
+                }),
+            },
+        )
+        await redis_client.aclose()
     finally:
         # Always close the connection — even if something failed
         await conn.close()
@@ -350,6 +384,29 @@ async def _embed_document_async(
             chunks_added,
             uuid.UUID(document_id),
         )
+# ── Step 6: emit embedded event ──────────────────────────
+        import redis.asyncio as aioredis
+        import json
+        from services.api.app.config import settings as s
 
+        redis_client = aioredis.from_url(
+            f"redis://:{s.redis_password}@{s.redis_host}:{s.redis_port}",
+            decode_responses=True,
+        )
+
+        await redis_client.xadd(
+            "omnidoc:document_events",
+            {
+                "event_type": "document.embedded",
+                "document_id": document_id,
+                "tenant_id": tenant_id,
+                "user_id": "system",
+                "timestamp": __import__('datetime').datetime.now(
+                    __import__('datetime').timezone.utc
+                ).isoformat(),
+                "payload": json.dumps({"chunk_count": chunks_added}),
+            },
+        )
+        await redis_client.aclose()
     finally:
         await conn.close()

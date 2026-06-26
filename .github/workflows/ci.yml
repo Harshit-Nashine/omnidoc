@@ -72,10 +72,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Install all packages except windows-only ones
-          grep -v "python-magic-bin" requirements.txt > requirements_ci.txt
+          # Exclude all Windows-only packages that don't exist on Linux
+          grep -v -E "python-magic-bin|pywin32|pywinpty|colorama|WMI" \
+            requirements.txt > requirements_ci.txt
           pip install -r requirements_ci.txt
-          # Install linux magic library
+          # Install linux equivalents
           pip install python-magic==0.4.27
 
       - name: Lint with flake8

@@ -68,7 +68,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install flake8 pytest pytest-asyncio
-          pip install -r requirements.txt
+          # Install linux-compatible packages, skip windows-only ones
+          pip install -r requirements.txt --ignore-requires-python || true
+          # python-magic-bin is Windows only — install linux version
+          pip uninstall python-magic-bin -y || true
+          pip install python-magic
+          # Install libmagic system dependency on Ubuntu
+          sudo apt-get install -y libmagic1
 
       - name: Lint with flake8
         run: |

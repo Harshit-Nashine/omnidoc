@@ -1,0 +1,38 @@
+# ================================================================
+# requirements-ci.txt
+# ================================================================
+# Minimal dependencies for running tests in GitHub Actions CI.
+# Only includes what the test files actually import.
+# Does NOT include Windows-only packages or heavy ML dependencies
+# that aren't needed for unit tests.
+# ================================================================
+
+# Core FastAPI stack
+fastapi==0.115.0
+uvicorn==0.30.6
+pydantic==2.8.2
+pydantic-settings==2.4.0
+python-multipart==0.0.9
+python-dotenv==1.0.1
+
+# Auth
+passlib==1.7.4
+bcrypt==4.0.1
+python-jose==3.3.0
+cryptography==42.0.8
+
+# Database drivers
+asyncpg==0.30.0
+motor==3.3.2
+pymongo==4.6.3
+redis==5.0.8
+
+# Document processing (Linux compatible)
+pdfplumber==0.11.0
+Pillow==10.4.0
+pytesseract==0.3.13
+python-magic==0.4.27
+
+# Testing
+pytest==9.1.1
+pytest-asyncio==1.4.0

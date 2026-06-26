@@ -1,0 +1,127 @@
+# ================================================================
+# .github/workflows/ci.yml
+# ================================================================
+# Continuous Integration pipeline.
+# Runs on every push and pull request to main.
+#
+# What it does:
+#   1. Sets up Python 3.13
+#   2. Installs dependencies
+#   3. Runs linting (flake8)
+#   4. Runs unit tests (pytest)
+#
+# WHY CI:
+# Catches broken imports, syntax errors, and test failures
+# before they reach production. Every commit is verified.
+# ================================================================
+
+name: OmniDoc CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      # PostgreSQL for integration tests
+      postgresql:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: omnidoc_user
+          POSTGRES_PASSWORD: OmniDoc2025Secure
+          POSTGRES_DB: omnidoc_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      # Redis for Celery and event bus
+      redis:
+        image: redis:7.2-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest pytest-asyncio
+          pip install -r requirements.txt
+
+      - name: Lint with flake8
+        run: |
+          # Stop build on syntax errors and undefined names
+          # E9: syntax errors, F63: invalid syntax, F7: undefined names
+          # F82: undefined names, --count shows total errors
+          flake8 services/ --count --select=E9,F63,F7,F82 \
+            --show-source --statistics
+          # Warn on style issues but don't fail build
+          flake8 services/ --count --exit-zero \
+            --max-line-length=120 --statistics
+
+      - name: Create test .env
+        run: |
+          cat > .env << 'EOF'
+          POSTGRES_USER=omnidoc_user
+          POSTGRES_PASSWORD=OmniDoc2025Secure
+          POSTGRES_DB=omnidoc_db
+          POSTGRES_HOST=localhost
+          POSTGRES_PORT=5432
+          MONGO_ROOT_USER=omnidoc_mongo
+          MONGO_ROOT_PASSWORD=OmniDoc2025Secure
+          MONGO_HOST=localhost
+          MONGO_PORT=27017
+          MONGO_DB=omnidoc_quarantine
+          REDIS_PASSWORD=
+          REDIS_HOST=localhost
+          REDIS_PORT=6379
+          MINIO_ROOT_USER=omnidoc_minio
+          MINIO_ROOT_PASSWORD=MinIO2025OK
+          MINIO_HOST=localhost
+          MINIO_PORT=9000
+          MINIO_CONSOLE_PORT=9001
+          MINIO_BUCKET_DOCUMENTS=documents
+          API_HOST=0.0.0.0
+          API_PORT=8000
+          SECRET_KEY=ci_test_secret_key_not_for_production_use
+          ALGORITHM=HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES=30
+          ANTHROPIC_API_KEY=
+          NOTIFICATIONS_ENABLED=false
+          SMTP_HOST=smtp.gmail.com
+          SMTP_PORT=587
+          SMTP_USER=
+          SMTP_PASSWORD=
+          SMTP_FROM=noreply@omnidoc.ai
+          SLACK_WEBHOOK_URL=
+          MLFLOW_TRACKING_URI=sqlite:///mlruns.db
+          MLFLOW_EXPERIMENT_NAME=omnidoc_embeddings
+          EOF
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v --tb=short
+        env:
+          PYTHONPATH: .

@@ -331,3 +331,39 @@ metrics. Model runs are comparable over time.
 - MLflow 3.14 UI shows runs under Model training tab not GenAI
 - No automated retraining trigger yet (drift detection Phase 10)
 - DVC push to MinIO not yet tested end-to-end
+
+---
+
+## Component: CI/CD Pipeline
+**Completed:** Phase 10
+
+**What it does:**
+GitHub Actions CI runs on every push to main. Verifies code
+quality and tests before any merge.
+
+**CI Pipeline steps:**
+1. Spin up PostgreSQL + Redis containers
+2. Install system deps (libmagic1, tesseract-ocr)
+3. Install Python deps from requirements-ci.txt
+4. Lint with flake8 (syntax errors fail build)
+5. Create test .env
+6. Run 19 pytest tests
+
+**Test coverage:**
+- test_config.py    — settings loading and URL formats
+- test_security.py  — password hashing and JWT tokens
+- test_chunker.py   — document chunking logic
+
+**Files:**
+- .github/workflows/ci.yml  — CI pipeline definition
+- requirements-ci.txt       — minimal Linux-compatible deps
+- pytest.ini                — pytest configuration
+- tests/conftest.py         — adds project root to Python path
+- tests/test_config.py
+- tests/test_security.py
+- tests/test_chunker.py
+
+**Known limitations:**
+- No CD pipeline yet (deployment automation)
+- No integration tests (DB/MinIO not fully mocked)
+- Sentence-transformers not installed in CI (too heavy)

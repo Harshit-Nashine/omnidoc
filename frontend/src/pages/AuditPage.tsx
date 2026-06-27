@@ -29,15 +29,54 @@ const AuditPage: React.FC = () => {
       .catch(err => setError(err.response?.data?.detail || 'Failed to load audit log'))
       .finally(() => setLoading(false));
   }, []);
+const exportCSV = () => {
+    const headers = ['Event Type', 'Document ID', 'User ID', 'Filename', 'Timestamp'];
+    const rows = entries.map(e => {
+      const payload = typeof e.payload === 'string' ? JSON.parse(e.payload) : e.payload;
+      return [
+        e.event_type,
+        e.document_id || '',
+        e.user_id || '',
+        payload?.filename || '',
+        new Date(e.created_at).toLocaleString(),
+      ];
+    });
 
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `omnidoc_audit_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3 mb-8">
-        <Shield className="w-6 h-6 text-blue-400" />
-        <div>
-          <h1 className="text-2xl font-bold text-white">Audit Log</h1>
-          <p className="text-slate-400 text-sm">Immutable record of all document events</p>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <Shield className="w-6 h-6 text-blue-400" />
+          <div>
+            <h1 className="text-2xl font-bold text-white">Audit Log</h1>
+            <p className="text-slate-400 text-sm">Immutable record of all document events</p>
+          </div>
         </div>
+        {entries.length > 0 && (
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl text-sm transition"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Export CSV
+          </button>
+        )}
       </div>
 
       {error && (

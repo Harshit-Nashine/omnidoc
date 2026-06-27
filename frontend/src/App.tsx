@@ -8,6 +8,7 @@ import UploadPage from './pages/UploadPage';
 import QueryPage from './pages/QueryPage';
 import AuditPage from './pages/AuditPage';
 import DocumentsPage from './pages/DocumentsPage';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token, loading } = useAuth();
@@ -27,19 +28,19 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/dashboard" element={
-            <ProtectedRoute><DashboardPage /></ProtectedRoute>
+            <ProtectedRoute><ErrorBoundary><DashboardPage /></ErrorBoundary></ProtectedRoute>
           } />
           <Route path="/upload" element={
-            <ProtectedRoute><UploadPage /></ProtectedRoute>
-          } />
-          <Route path="/documents" element={
-            <ProtectedRoute><DocumentsPage /></ProtectedRoute>
+            <ProtectedRoute><ErrorBoundary><UploadPage /></ErrorBoundary></ProtectedRoute>
           } />
           <Route path="/query" element={
-            <ProtectedRoute><QueryPage /></ProtectedRoute>
+            <ProtectedRoute><ErrorBoundary><QueryPage /></ErrorBoundary></ProtectedRoute>
           } />
           <Route path="/audit" element={
-            <ProtectedRoute><AuditPage /></ProtectedRoute>
+            <ProtectedRoute><ErrorBoundary><AuditPage /></ErrorBoundary></ProtectedRoute>
+          } />
+          <Route path="/documents" element={
+            <ProtectedRoute><ErrorBoundary><DocumentsPage /></ErrorBoundary></ProtectedRoute>
           } />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

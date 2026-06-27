@@ -110,6 +110,9 @@ async def query_documents(
         query_text=body.question,
         n_results=body.n_results,
     )
+
+    # Filter out low-relevance chunks — below 60% is likely noise
+    results = [r for r in results if r["score"] >= 0.60]
     retrieval_latency_ms = int((time.perf_counter() - retrieval_start) * 1000)
 
     chunks = [

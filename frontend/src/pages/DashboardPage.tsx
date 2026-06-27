@@ -11,12 +11,29 @@ const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getDocuments(), getHealth()])
-      .then(([docs, h]) => {
-        setDocuments(docs);
-        setHealth(h);
-      })
-      .finally(() => setLoading(false));
+    const fetchAll = () => {
+      Promise.all([getDocuments(), getHealth()])
+        .then(([docs, h]) => {
+          setDocuments(docs);
+          setHealth(h);
+        })
+        .finally(() => setLoading(false));
+    };
+
+    fetchAll();
+
+    // Poll every 10 seconds if any document is still processing
+    const interval = setInterval(() => {
+      setDocuments(prev => {
+        const hasProcessing = prev.some(d =>
+          ['uploaded', 'processing', 'embedding'].includes(d.processing_status)
+        );
+        if (hasProcessing) fetchAll();
+        return prev;
+      });
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const stats = {

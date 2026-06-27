@@ -11,19 +11,36 @@ interface Message {
 }
 
 const QueryPage: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '0',
-      role: 'assistant',
-      content: 'Hello! I can answer questions about your approved documents. What would you like to know?',
+  const [messages, setMessages] = useState<Message[]>(() => {
+    // Load from localStorage on first render
+    try {
+      const saved = localStorage.getItem('omnidoc_query_history');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.length > 0) return parsed;
+      }
+    } catch {
+      // Ignore parse errors
     }
-  ]);
+    return [{
+      id: '0',
+      role: 'assistant' as const,
+      content: 'Hello! I can answer questions about your approved documents. What would you like to know?',
+    }];
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+  // Save last 20 messages to localStorage
+  useEffect(() => {
+    if (messages.length > 1) {
+      const toSave = messages.slice(-20);
+      localStorage.setItem('omnidoc_query_history', JSON.stringify(toSave));
+    }
   }, [messages]);
 
   const handleSend = async () => {
@@ -136,7 +153,24 @@ const QueryPage: React.FC = () => {
 
       {/* Input */}
       <div className="p-4 border-t border-slate-700/50 bg-slate-900/50">
-        <div className="flex gap-3 max-w-4xl mx-auto">
+        <div className="flex gap-3 max-w-4xl mx-auto items-center">
+          <button
+            onClick={() => {
+              localStorage.removeItem('omnidoc_query_history');
+              setMessages([{
+                id: '0',
+                role: 'assistant',
+                content: 'Hello! I can answer questions about your approved documents. What would you like to know?',
+              }]);
+            }}
+            className="text-slate-600 hover:text-slate-400 transition p-2 rounded-xl hover:bg-slate-800 shrink-0"
+            title="Clear history"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
           <input
             type="text"
             value={input}

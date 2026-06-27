@@ -2,7 +2,8 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import {
-  FileText, Upload, Search, Shield, LogOut, LayoutDashboard
+  FileText, Upload, Search, Shield, LogOut, LayoutDashboard, FolderOpen
+
 } from 'lucide-react';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -20,6 +21,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { path: '/upload', icon: Upload, label: 'Upload' },
     { path: '/query', icon: Search, label: 'Query' },
     { path: '/audit', icon: Shield, label: 'Audit Log' },
+    { path: '/documents', icon: FolderOpen, label: 'Documents' },
   ];
 
   return (

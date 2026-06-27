@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import UploadPage from './pages/UploadPage';
 import QueryPage from './pages/QueryPage';
 import AuditPage from './pages/AuditPage';
+import DocumentsPage from './pages/DocumentsPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token, loading } = useAuth();
@@ -30,6 +31,9 @@ const App: React.FC = () => {
           } />
           <Route path="/upload" element={
             <ProtectedRoute><UploadPage /></ProtectedRoute>
+          } />
+          <Route path="/documents" element={
+            <ProtectedRoute><DocumentsPage /></ProtectedRoute>
           } />
           <Route path="/query" element={
             <ProtectedRoute><QueryPage /></ProtectedRoute>

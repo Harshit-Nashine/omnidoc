@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { uploadDocument, approveDocument } from '../api';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { uploadDocument, approveDocument, getDocument } from '../api';
 import { Upload, CheckCircle, XCircle, Clock, FileText, AlertTriangle } from 'lucide-react';
 
 const UploadPage: React.FC = () => {
@@ -8,6 +8,40 @@ const UploadPage: React.FC = () => {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
   const [approving, setApproving] = useState(false);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  
+// Poll document status every 3 seconds while processing
+  useEffect(() => {
+    const docId = result?.document?.id;
+    const status = result?.document?.processing_status;
+    const isProcessing = status === 'uploaded' || status === 'processing' || status === 'embedding';
+
+    if (docId && isProcessing) {
+      pollingRef.current = setInterval(async () => {
+        try {
+          const updated = await getDocument(docId);
+          setResult((prev: any) => ({ ...prev, document: updated }));
+
+          // Stop polling when processing is done
+          const done = ['processed', 'completed', 'failed'].includes(updated.processing_status);
+          if (done && pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+        } catch {
+          // Silently ignore polling errors
+        }
+      }, 3000);
+    }
+
+    // Cleanup on unmount or when status changes
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [result?.document?.id, result?.document?.processing_status]); 
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
@@ -141,10 +175,17 @@ const UploadPage: React.FC = () => {
             )}
             {(result.document.processing_status === 'uploaded' || result.document.processing_status === 'processing') && (
               <div className="flex items-center gap-2 text-blue-400">
-                <Clock className="w-5 h-5" />
-                <span className="text-sm">Processing in background — check dashboard for status</span>
+                <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm">Processing... checking status automatically</span>
               </div>
             )}
+            {result.document.processing_status === 'embedding' && (
+              <div className="flex items-center gap-2 text-purple-400">
+                <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm">Embedding into knowledge base...</span>
+              </div>
+            )}
+
             {result.document.compliance_status === 'approved' && (
               <div className="flex items-center gap-2 text-blue-400">
                 <CheckCircle className="w-5 h-5" />

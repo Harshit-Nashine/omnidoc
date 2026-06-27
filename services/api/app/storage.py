@@ -121,12 +121,7 @@ SUPPORTED_FILE_TYPES = {
     "image/png": "image",
     "image/tiff": "image",
     "image/webp": "image",
-    # Audio — for Whisper transcription
-    "audio/mpeg": "audio",
-    "audio/mp4": "audio",
-    "audio/wav": "audio",
-    "audio/x-wav": "audio",
-    "audio/ogg": "audio",
+
     # Office documents
     "application/vnd.openxmlformats-officedocument"
     ".wordprocessingml.document": "word",

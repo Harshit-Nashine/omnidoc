@@ -74,6 +74,9 @@ def parse_document(
             metadata={"filename": filename},
             parser_used="plaintext",
         )
+    elif file_type == "word":
+        from services.api.app.parsers.word_parser import parse_word_document
+        return parse_word_document(file_bytes)
     else:
         # Unsupported types return a placeholder
         # Will be replaced in Phase 4 when Whisper + LibreOffice added

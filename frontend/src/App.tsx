@@ -9,6 +9,8 @@ import QueryPage from './pages/QueryPage';
 import AuditPage from './pages/AuditPage';
 import DocumentsPage from './pages/DocumentsPage';
 import ErrorBoundary from './components/ErrorBoundary';
+import DemoLaunchpad from './pages/DemoLaunchpad';
+
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token, loading } = useAuth();
@@ -26,6 +28,8 @@ const App: React.FC = () => {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<DemoLaunchpad />} />
+          <Route path="/launchpad" element={<DemoLaunchpad />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/dashboard" element={
             <ProtectedRoute><ErrorBoundary><DashboardPage /></ErrorBoundary></ProtectedRoute>

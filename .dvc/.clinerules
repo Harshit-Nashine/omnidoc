@@ -1,0 +1,5 @@
+# OmniDoc Exploration Rules
+1. READ-ONLY AUDIT: Do not edit, refactor, or delete existing code unless explicitly requested.
+2. ACCURACY: Base all explanations strictly on actual code, docker files, and configs found in the workspace. Do not assume standard patterns if the codebase implements a custom solution.
+3. MODULAR BREAKDOWN: Document discoveries in clear markdown sections (Architecture, Storage, Pipelines, Monitoring, Runbook).
+4. SECRETS: Never print raw secrets, keys, or token values found in .env files.

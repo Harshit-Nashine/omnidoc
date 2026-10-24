@@ -5,7 +5,7 @@ const DemoLaunchpad: React.FC = () => {
   const [services, setServices] = useState<any[]>([
     {
       name: 'OmniDoc Frontend',
-      url: 'http://localhost:3001',
+      url: 'http://localhost:3001/dashboard',
       status: 'checking',
       icon: '🎨',
       description: 'Main application UI'

@@ -1,5 +1,10 @@
 @echo off
-echo Starting OmniDoc...
+echo.
+echo ╔════════════════════════════════════════════════════════════╗
+echo ║                  OmniDoc Demo Startup                      ║
+echo ║          All services starting... please wait              ║
+echo ╚════════════════════════════════════════════════════════════╝
+echo.
 
 echo Starting Docker services...
 docker compose up -d
@@ -14,14 +19,18 @@ echo Starting Celery worker...
 start "OmniDoc Celery" cmd /k "cd /d D:\omnidoc && venv\Scripts\activate && celery -A services.api.app.celery_app worker --loglevel=info --pool=solo"
 
 echo Starting React frontend...
-start "OmniDoc Frontend" cmd /k "cd /d D:\omnidoc\frontend && npm start -- --open http://localhost:3001/launchpad"
+start "OmniDoc Frontend" cmd /k "cd /d D:\omnidoc\frontend && npm start"
 
 echo.
-echo OmniDoc is starting up...
-echo API:      http://localhost:8000
-echo Frontend: http://localhost:3001 (or 3000 if Grafana not running)
-echo Swagger:  http://localhost:8000/docs
-echo Grafana:  http://localhost:3000
+echo ╔════════════════════════════════════════════════════════════╗
+echo ║                  OmniDoc Ready!                            ║
+echo ║                                                            ║
+echo ║  Frontend:    http://localhost:3001                       ║
+echo ║  Login:       admin@testcompany.com / SecurePass123      ║
+echo ║  Grafana:     http://localhost:3000 (admin/admin)        ║
+echo ║  Guide:       Open DEMO_GUIDE.md in this folder          ║
+echo ║                                                            ║
+echo ║  Follow DEMO_GUIDE.md for complete walkthrough           ║
+echo ╚════════════════════════════════════════════════════════════╝
 echo.
-echo All services launched. Check the opened terminals for status.
-pause
+timeout /t 5 /nobreak > nul

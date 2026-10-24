@@ -89,7 +89,6 @@ MONITORED_ENTITIES = [
     "EMAIL_ADDRESS",
     "CREDIT_CARD",
     "IBAN_CODE",
-    "PERSON",
     "LOCATION",
     "IN_PAN",        # Indian PAN card — ABCDE1234F format
     "IN_AADHAAR",    # Indian Aadhaar — 12 digit number

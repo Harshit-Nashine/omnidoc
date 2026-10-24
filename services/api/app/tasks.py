@@ -77,9 +77,18 @@ def process_document(self, document_id: str, tenant_id: str):
         asyncio.run(
             _process_document_async(document_id, tenant_id)
         )
-    except Exception as exc:
-        # Retry on failure — handles transient errors
-        raise self.retry(exc=exc)
+    except (ValueError, Exception) as exc:
+        # Parse errors (corrupt images, unreadable files) should fail immediately
+        # without retrying since they won't succeed on retry
+        from PIL import UnidentifiedImageError
+        
+        if isinstance(exc, (ValueError, UnidentifiedImageError)):
+            # Don't retry — parse errors won't magically fix themselves
+            # The on_failure handler will mark it failed
+            raise exc
+        else:
+            # Connection/temporary errors — retry up to max_retries
+            raise self.retry(exc=exc)
 
 
 async def _process_document_async(

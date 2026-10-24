@@ -1,0 +1,11 @@
+Employee Record - Confidential
+
+Name: Priya Mehta
+Employee ID: EMP-4471
+Department: Finance
+
+Aadhaar Number: 4321 8765 2109
+PAN: BNZPM2501F
+Mobile: +91 98100 55667
+Email: priya.mehta@example-corp.in
+Bank Account: 50100234567890

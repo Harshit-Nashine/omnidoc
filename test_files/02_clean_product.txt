@@ -1,0 +1,11 @@
+Quantum Cloud Storage Product Brief
+
+Quantum Cloud Storage offers encrypted object storage for small and medium businesses.
+The product supports unlimited versioning, automatic backups every 6 hours, and
+99.95 percent uptime guaranteed under the Silver service tier.
+
+Pricing starts at 0.02 dollars per gigabyte per month. The Gold tier adds 24/7 phone
+support and a dedicated account manager. Data is stored in three geographic regions
+by default, and customers may choose a single region to meet residency requirements.
+
+Supported integrations include Slack, Jira, and GitHub.

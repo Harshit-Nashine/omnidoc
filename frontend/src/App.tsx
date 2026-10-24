@@ -28,7 +28,7 @@ const App: React.FC = () => {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<DemoLaunchpad />} />
           <Route path="/launchpad" element={<DemoLaunchpad />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/dashboard" element={

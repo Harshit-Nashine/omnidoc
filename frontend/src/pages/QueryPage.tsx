@@ -105,10 +105,10 @@ const QueryPage: React.FC = () => {
                 <div className="mt-3 space-y-2">
                   <p className="text-xs text-slate-500 px-1">Sources:</p>
                   {message.chunks.map((chunk, i) => (
-                    <div key={i} className="bg-slate-900/50 border border-slate-700/30 rounded-xl p-3">
+                    <button key={i} onClick={() => window.location.href = `/documents?id=${chunk.document_id}`} className="w-full text-left bg-slate-900/50 border border-slate-700/30 rounded-xl p-3 hover:border-blue-500/50 cursor-pointer transition">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <FileText className="w-3 h-3 text-slate-500" />
+                          <FileText className="w-3 h-3 text-blue-400" />
                           <span className="text-xs text-slate-500">
                             Doc {chunk.document_id.slice(0, 8)}... · Page {chunk.page}
                           </span>
@@ -118,7 +118,7 @@ const QueryPage: React.FC = () => {
                         </span>
                       </div>
                       <p className="text-xs text-slate-400 line-clamp-3">{chunk.text}</p>
-                    </div>
+                    </button>
                   ))}
                   {message.latency && (
                     <p className="text-xs text-slate-600 px-1">

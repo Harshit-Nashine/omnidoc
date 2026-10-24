@@ -42,6 +42,16 @@ const DocumentsPage: React.FC = () => {
 
   useEffect(() => {
     fetchDocuments();
+    
+    // If opened from RAG with ?id=, auto-select that document
+    const params = new URLSearchParams(window.location.search);
+    const docId = params.get('id');
+    if (docId) {
+      // Fetch and select this document
+      getDocument(docId)
+        .then(doc => setSelected(doc))
+        .catch(() => console.log('Document not found'));
+    }
   }, []);
 
   const handleSelect = async (doc: any) => {
@@ -249,7 +259,15 @@ const DocumentsPage: React.FC = () => {
                 {approving ? 'Approving...' : 'Approve for Knowledge Base'}
               </button>
             )}
-
+            {/* Extracted Text Preview */}
+            {selected.processing_status === 'completed' && (
+              <div className="mt-6 bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5 mb-4">
+                <h3 className="text-white font-medium mb-3">Extracted Content</h3>
+                <div className="bg-slate-900/50 rounded-lg p-4 max-h-64 overflow-y-auto text-xs text-slate-300 font-mono whitespace-pre-wrap break-words">
+                  {selected.extracted_text || 'Content not yet extracted.'}
+                </div>
+              </div>
+            )}
             {/* Status messages */}
             {selected.compliance_status === 'flagged' && (
               <div className="flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 mt-3">

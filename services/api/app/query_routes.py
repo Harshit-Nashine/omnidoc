@@ -171,7 +171,7 @@ async def query_documents(
         llm_latency_ms=llm_latency_ms,
         total_latency_ms=total_latency_ms,
     )
-# Log to MLflow for retrieval quality tracking
+    # Log to MLflow for retrieval quality tracking
     if chunks:
         log_query_metrics(
             question=body.question,
@@ -179,6 +179,25 @@ async def query_documents(
             retrieval_latency_ms=retrieval_latency_ms,
             top_score=chunks[0].score if chunks else 0.0,
         )
+
+    # ── Step 4: log query to audit trail for compliance ─────────
+    from services.api.app.audit_queries import write_audit_log
+    import json
+    
+    write_audit_log(
+        pool=pool,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        document_id=None,
+        event_type="query.executed",
+        payload={
+            "question": body.question,
+            "chunks_retrieved": len(chunks),
+            "retrieval_latency_ms": retrieval_latency_ms,
+            "llm_latency_ms": llm_latency_ms if llm_latency_ms > 0 else None,
+        }
+    )
+
     return QueryResponse(
         question=body.question,
         answer=answer,

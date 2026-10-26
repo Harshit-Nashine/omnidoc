@@ -25,6 +25,7 @@ from services.api.app.vector_store import query_vector_store
 from services.api.app.llm_service import synthesize_answer
 from services.api.app.cost_queries import log_query_cost
 from services.api.app.ml_tracking import log_query_metrics
+from services.api.app.extractive_answer import build_extractive_answer
 from services.api.app.metrics import (
     rag_queries_total,
     rag_retrieval_duration_seconds,
@@ -135,7 +136,7 @@ async def query_documents(
     llm_latency_ms = 0
 
     if chunks:
-        llm_result = synthesize_answer(
+        llm_result = build_extractive_answer(
             question=body.question,
             chunks=results,
         )

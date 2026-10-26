@@ -9,7 +9,8 @@
 # When we add Whisper (audio) and LibreOffice (office docs) in
 # Phase 4, we add them here only. No other file changes.
 # ================================================================
-
+from services.api.app.parsers.pptx_parser import parse_pptx
+from services.api.app.parsers.excel_parser import parse_excel
 from services.api.app.parsers.pdf_parser import (
     parse_pdf,
     is_scanned_pdf,
@@ -77,6 +78,10 @@ def parse_document(
     elif file_type == "word":
         from services.api.app.parsers.word_parser import parse_word_document
         return parse_word_document(file_bytes)
+    elif file_type == "powerpoint":
+        return parse_pptx(file_bytes)
+    elif file_type == "excel":
+        return parse_excel(file_bytes)
     else:
         # Unsupported types return a placeholder
         # Will be replaced in Phase 4 when Whisper + LibreOffice added

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { queryDocuments } from '../api';
+import { queryDocuments, getDocuments } from '../api';
 import { Send, Bot, User, FileText, Loader } from 'lucide-react';
 
 interface Message {
@@ -8,6 +8,7 @@ interface Message {
   content: string;
   chunks?: any[];
   latency?: number;
+  question?: string;
 }
 
 const QueryPage: React.FC = () => {
@@ -30,6 +31,22 @@ const QueryPage: React.FC = () => {
   });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+    // Map document ID to metadata so sources show filenames, not IDs
+  const [docMap, setDocMap] = useState<Record<string, any>>({});
+
+  const loadDocs = () => {
+    getDocuments()
+      .then((docs: any[]) => {
+        const map: Record<string, any> = {};
+        docs.forEach(d => { map[d.id] = d; });
+        setDocMap(map);
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadDocs();
+  }, []);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,9 +82,11 @@ const QueryPage: React.FC = () => {
         content: data.answer || 'Here are the most relevant sections from your documents:',
         chunks: data.chunks,
         latency: data.retrieval_latency_ms,
+        question: input,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      loadDocs();
     } catch (err: any) {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
@@ -86,6 +105,57 @@ const QueryPage: React.FC = () => {
     ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
     : 0;
   const docsHit = new Set(allChunks.map(c => c.document_id)).size;
+    // Confidence tier from the similarity score
+  const confidenceLabel = (score: number) =>
+    score >= 0.8
+      ? { text: 'High confidence', cls: 'text-green-400 bg-green-400/10' }
+      : score >= 0.7
+      ? { text: 'Medium confidence', cls: 'text-yellow-400 bg-yellow-400/10' }
+      : { text: 'Low confidence', cls: 'text-orange-400 bg-orange-400/10' };
+
+  // Highlights the question's words inside a passage, so the reader
+  // can see why the passage matched
+  const highlight = (text: string, query: string = '') => {
+    const terms = query
+      .split(/\s+/)
+      .filter(t => t.length > 3)
+      .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    if (terms.length === 0) return text;
+    const splitter = new RegExp(`(${terms.join('|')})`, 'gi');
+    const tester = new RegExp(`^(${terms.join('|')})$`, 'i');
+    return text.split(splitter).map((part, i) =>
+      tester.test(part)
+        ? <mark key={i} className="bg-blue-500/30 text-white rounded px-0.5">{part}</mark>
+        : part
+    );
+  };
+
+  // Exports one answer as Markdown with its sources and compliance status
+  const exportAnswer = (m: Message) => {
+    const lines = [
+      '# OmniDoc Answer',
+      '',
+      `**Question:** ${m.question || ''}`,
+      '',
+      `**Answer:** ${m.content}`,
+      '',
+      '## Sources',
+      ...(m.chunks || []).map((c: any, i: number) => {
+        const d = docMap[c.document_id];
+        return `${i + 1}. ${d?.original_filename || c.document_id} · page ${c.page} · ` +
+          `${(c.score * 100).toFixed(0)}% match · compliance: ${d?.compliance_status || 'unknown'}\n\n> ${c.text}`;
+      }),
+      '',
+      `_Exported ${new Date().toLocaleString()} from OmniDoc. Sources are approved documents only._`,
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'omnidoc_answer.md';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
     {/* Session stats */}
@@ -137,22 +207,35 @@ const QueryPage: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <FileText className="w-3 h-3 text-blue-400" />
                           <span className="text-xs text-slate-500">
-                            Doc {chunk.document_id.slice(0, 8)}... · Page {chunk.page}
+                            {docMap[chunk.document_id]?.original_filename || `Doc ${chunk.document_id.slice(0, 8)}...`} · Page {chunk.page}
                           </span>
                         </div>
-                        <span className="text-xs text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full">
-                          {(chunk.score * 100).toFixed(0)}% match
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${confidenceLabel(chunk.score).cls}`}>
+                            {confidenceLabel(chunk.score).text}
+                          </span>
+                          <span className="text-xs text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full">
+                            {(chunk.score * 100).toFixed(0)}% match
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-xs text-slate-400 line-clamp-3">{chunk.text}</p>
+                      <p className="text-xs text-slate-400 line-clamp-3">{highlight(chunk.text, message.question)}</p>
                     </button>
                   ))}
                   {message.latency && (
                     <p className="text-xs text-slate-600 px-1">
                       Retrieved in {message.latency}ms
                     </p>
+                    
                   )}
+                  <button
+                    onClick={() => exportAnswer(message)}
+                    className="text-xs text-blue-300 hover:text-blue-200 underline px-1"
+                  >
+                    Export answer with sources (.md)
+                  </button>
                 </div>
+                
               )}
             </div>
 

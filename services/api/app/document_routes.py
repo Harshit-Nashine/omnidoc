@@ -11,7 +11,7 @@ from uuid import UUID
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi import Query
-
+from fastapi.responses import StreamingResponse
 from services.api.app.database import get_postgresql_pool
 from services.api.app.auth_routes import get_current_user
 from services.api.app.metrics import documents_uploaded_total, documents_compliance_total
@@ -243,6 +243,25 @@ async def get_document(
             detail=f"Document {document_id} not found.",
         )
 
+    # ── Fetch extracted text from MinIO if available ──
+    if document.get("extracted_text_path"):
+        try:
+            minio_client = get_minio_client()
+            response = minio_client.get_object(
+                bucket_name=settings.minio_bucket_documents,
+                object_name=document["extracted_text_path"],
+            )
+            extracted_text = response.read().decode("utf-8")
+            response.close()
+            
+            # Add to document — limit to first 5000 chars for frontend
+            document["extracted_text"] = extracted_text[:5000]
+        except Exception as e:
+            # If fetch fails, just omit it — don't crash the endpoint
+            document["extracted_text"] = None
+    else:
+        document["extracted_text"] = None
+
     return DocumentOut(**document)
 @router.post("/{document_id}/approve", response_model=DocumentOut)
 async def approve_document(
@@ -354,3 +373,41 @@ async def approve_document(
     )
 
     return DocumentOut(**updated)
+@router.get("/{document_id}/download")
+async def download_document(
+    document_id: uuid.UUID,
+    current_user: dict = Depends(get_current_user),
+    pool=Depends(get_postgresql_pool),
+):
+    """
+    Streams the original uploaded file to the client.
+    Tenant check happens in get_document_by_id, so another
+    tenant's document returns 404.
+    """
+    tenant_id = uuid.UUID(str(current_user["tenant_id"]))
+
+    document = await get_document_by_id(
+        pool=pool,
+        document_id=document_id,
+        tenant_id=tenant_id,
+    )
+
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document {document_id} not found.",
+        )
+
+    client = get_minio_client()
+    stored_file = client.get_object(
+        bucket_name=settings.minio_bucket_documents,
+        object_name=document["storage_path"],
+    )
+
+    return StreamingResponse(
+        stored_file.stream(32 * 1024),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{document["original_filename"]}"'
+        },
+    )

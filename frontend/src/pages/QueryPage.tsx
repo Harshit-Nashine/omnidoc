@@ -78,9 +78,36 @@ const QueryPage: React.FC = () => {
       setLoading(false);
     }
   };
-
+  // Session analytics, computed from the messages already on screen
+  const questionCount = messages.filter(m => m.role === 'user').length;
+  const allChunks = messages.flatMap(m => m.chunks || []);
+  const latencies = messages.filter(m => m.latency).map(m => m.latency as number);
+  const avgLatency = latencies.length
+    ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
+    : 0;
+  const docsHit = new Set(allChunks.map(c => c.document_id)).size;
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
+    {/* Session stats */}
+      <div className="grid grid-cols-4 gap-3 p-4 border-b border-slate-700/50">
+        {[
+          { label: 'Questions', value: questionCount },
+          { label: 'Avg retrieval', value: `${avgLatency} ms` },
+          { label: 'Passages matched', value: allChunks.length },
+          { label: 'Documents hit', value: docsHit },
+        ].map(s => (
+          <div key={s.label} className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 text-center">
+            <p className="text-lg font-semibold text-white">{s.value}</p>
+            <p className="text-xs text-slate-500">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* What makes this different */}
+      <div className="mx-4 mt-3 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-xs text-slate-300">
+        <span className="text-blue-300 font-medium">Answers come only from your approved documents.</span>{' '}
+        Every answer shows the exact passage it came from, every query is logged, and documents with PII are blocked from the knowledge base.
+      </div>
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.map((message) => (

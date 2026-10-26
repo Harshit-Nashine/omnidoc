@@ -186,6 +186,7 @@ class DocumentOut(BaseModel):
     storage_path: str
     compliance_status: str
     processing_status: str
+    extracted_text: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

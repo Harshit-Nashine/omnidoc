@@ -157,7 +157,7 @@ const DocumentsPage: React.FC = () => {
                     {doc.original_filename}
                   </p>
                   <p className="text-slate-500 text-xs capitalize mt-0.5">
-                    {doc.file_type} · {(doc.file_size_bytes / 1024).toFixed(1)} KB
+                    {doc.file_type} · {(doc.file_size_bytes / 1024).toFixed(1)} KB · {new Date(doc.created_at).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
@@ -259,6 +259,29 @@ const DocumentsPage: React.FC = () => {
                 {approving ? 'Approving...' : 'Approve for Knowledge Base'}
               </button>
             )}
+            {/* Download original file */}
+            <button
+              onClick={async () => {
+                const res = await fetch(
+                  `http://localhost:8000/documents/${selected.id}/download`,
+                  { headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` } }
+                );
+                if (!res.ok) {
+                  alert('Download failed');
+                  return;
+                }
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = selected.original_filename;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="w-full bg-slate-700 hover:bg-slate-600 text-white py-2.5 px-4 rounded-xl text-sm font-medium transition mb-4"
+            >
+              Download Original File
+            </button>
             {/* Extracted Text Preview */}
             {selected.processing_status === 'completed' && (
               <div className="mt-6 bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5 mb-4">
